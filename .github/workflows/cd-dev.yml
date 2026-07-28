@@ -1,0 +1,60 @@
+name: Deploy to dev
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Compute short SHA
+        id: vars
+        run: echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/deepak6208/flowtest:${{ steps.vars.outputs.sha_short }}
+
+      - name: Report what was built
+        run: |
+          echo "Image:  ghcr.io/deepak6208/flowtest:${{ steps.vars.outputs.sha_short }}"
+          echo "Digest: ${{ steps.build.outputs.digest }}"
+
+  deploy-dev:
+    name: Deploy to dev
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    steps:
+      - name: Deploy
+        run: |
+          echo "=================================="
+          echo "  DEPLOYING TO DEV"
+          echo "=================================="
+          echo "Image:  ghcr.io/deepak6208/flowtest:${{ needs.build.outputs.sha_short }}"
+          echo "Digest: ${{ needs.build.outputs.digest }}"
+          echo "Config: synthetic data, debug logging on"
