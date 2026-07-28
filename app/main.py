@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 SERVICE_NAME = "renewal-demo-service"
-SUPPORTED_LINES = ["auto", "home"]
+SUPPORTED_LINES = ["auto", "home", "umbrella"]
 
 app = FastAPI(title=SERVICE_NAME)
 
