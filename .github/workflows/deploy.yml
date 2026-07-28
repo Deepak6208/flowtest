@@ -1,0 +1,28 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Simulate deployment
+        run: |
+          echo "Deploying commit ${GITHUB_SHA::7} to ${{ inputs.environment }}"
+          echo "Real pipeline would pull image tagged ${GITHUB_SHA::7} from the registry"
+          echo "and start it with the ${{ inputs.environment }} configuration."
