@@ -1,4 +1,4 @@
-# flowtest
+# flowtest — edited by B
 
 Demonstration repository for the team Git workflow: branching, pull requests,
 code review, automated checks, and promotion through dev, staging and production.
