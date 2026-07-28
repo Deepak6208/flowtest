@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy-staging:
+    name: Deploy to staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    outputs:
+      digest: ${{ steps.promote.outputs.digest }}
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote the existing image
+        id: promote
+        run: |
+          SHORT=${GITHUB_SHA::7}
+          IMAGE=ghcr.io/deepak6208/flowtest
+
+          DIGEST=$(docker buildx imagetools inspect $IMAGE:$SHORT --format '{{.Manifest.Digest}}')
+
+          docker buildx imagetools create -t $IMAGE:${GITHUB_REF_NAME} $IMAGE:$SHORT
+
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+          echo "=================================="
+          echo "  DEPLOYING TO STAGING"
+          echo "=================================="
+          echo "Release: ${GITHUB_REF_NAME}"
+          echo "Image:   $IMAGE:$SHORT"
+          echo "Digest:  $DIGEST"
+          echo "Config:  anonymised production-shaped data"
+
+  deploy-production:
+    name: Deploy to production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify and deploy
+        run: |
+          SHORT=${GITHUB_SHA::7}
+          IMAGE=ghcr.io/deepak6208/flowtest
+
+          DIGEST=$(docker buildx imagetools inspect $IMAGE:$SHORT --format '{{.Manifest.Digest}}')
+
+          echo "=================================="
+          echo "  DEPLOYING TO PRODUCTION"
+          echo "=================================="
+          echo "Release: ${GITHUB_REF_NAME}"
+          echo "Image:   $IMAGE:$SHORT"
+          echo "Digest:  $DIGEST"
+          echo "Config:  live customer data"
+          echo ""
+          echo "Digest approved in staging: ${{ needs.deploy-staging.outputs.digest }}"
+          echo "Digest deploying to prod:   $DIGEST"
+          if [ "$DIGEST" = "${{ needs.deploy-staging.outputs.digest }}" ]; then
+            echo "MATCH — the artifact signed off in staging is exactly what ships."
+          else
+            echo "MISMATCH — halting."
+            exit 1
+          fi
