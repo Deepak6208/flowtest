@@ -31,10 +31,8 @@ jobs:
           SHORT=${GITHUB_SHA::7}
           IMAGE=ghcr.io/deepak6208/flowtest
 
-          echo "Looking up the image already built from this commit..."
           DIGEST=$(docker buildx imagetools inspect $IMAGE:$SHORT --format '{{.Manifest.Digest}}')
 
-          echo "Retagging $SHORT as ${GITHUB_REF_NAME} — no rebuild"
           docker buildx imagetools create -t $IMAGE:${GITHUB_REF_NAME} $IMAGE:$SHORT
 
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
@@ -63,13 +61,16 @@ jobs:
 
       - name: Verify and deploy
         run: |
+          SHORT=${GITHUB_SHA::7}
           IMAGE=ghcr.io/deepak6208/flowtest
-          DIGEST=$(docker buildx imagetools inspect $IMAGE:${GITHUB_REF_NAME} --format '{{.Manifest.Digest}}')
+
+          DIGEST=$(docker buildx imagetools inspect $IMAGE:$SHORT --format '{{.Manifest.Digest}}')
 
           echo "=================================="
           echo "  DEPLOYING TO PRODUCTION"
           echo "=================================="
           echo "Release: ${GITHUB_REF_NAME}"
+          echo "Image:   $IMAGE:$SHORT"
           echo "Digest:  $DIGEST"
           echo "Config:  live customer data"
           echo ""
@@ -78,6 +79,6 @@ jobs:
           if [ "$DIGEST" = "${{ needs.deploy-staging.outputs.digest }}" ]; then
             echo "MATCH — the artifact signed off in staging is exactly what ships."
           else
-            echo "MISMATCH — halting would be correct here."
+            echo "MISMATCH — halting."
             exit 1
           fi
